@@ -109,7 +109,7 @@ class Cursor(object):
                 else:
                     assert False, "unknown argument type: %s %s" % (type(arg), repr(arg))
 
-            qry = qry % tuple(params)
+            qry = qry % params
             result = self.connection.client.query(qry)
             
             #process result if nescecary
