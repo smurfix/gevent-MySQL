@@ -86,6 +86,7 @@ class ResultSet(object):
     STATE_OPEN = 1
     STATE_EOF = 2
     STATE_CLOSED = 3
+    STATE_PULLED = 4
 
     def __init__(self, connection, field_count):
         self.state = self.STATE_INIT
@@ -95,14 +96,31 @@ class ResultSet(object):
         self.fields = connection.reader.read_fields(field_count)
 
         self.state = self.STATE_OPEN
+        self.results = []
 
     def __iter__(self):
-        assert self.state == self.STATE_OPEN, "cannot iterate a resultset when it is not open"
+        assert self.state == self.STATE_OPEN or self.state == STATE_PULLED, "cannot iterate a resultset when it is not open"
 
         for row in self.connection.reader.read_rows(self.fields):
             yield row
+            if self.state != self.STATE_OPEN:
+                break
+
+        while self.state == self.STATE_PULLED:
+            if not self.results:
+                break
+            yield self.results.pop(0)
 
         self.state = self.STATE_EOF
+
+    def pull(self):
+        """Reads the rest of the current resultset so that the connection is free for the next statement"""
+        if self.state == self.STATE_OPEN:
+            for row in self.connection.reader.read_rows(self.fields):
+                self.results.append(row)
+
+        self.state = self.STATE_PULLED
+
 
     def close(self, connection_close = False):
         """Closes the current resultset. Make sure you have iterated over all rows before closing it!"""
@@ -322,7 +340,9 @@ class Connection(object):
         assert type(cmd_text) == str #as opposed to unicode
         assert self.is_connected(), "make sure connection is connected before query"
         if self._incommand != False: assert False, "overlapped commands not supported"
-        if self.current_resultset: assert False, "overlapped commands not supported, pls read prev resultset and close it"
+        if self.current_resultset:
+            self.current_resultset.pull()
+            self.current_resultset = None
         try:
             self._incommand = True
             if self._time_command:

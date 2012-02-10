@@ -130,8 +130,12 @@ class Cursor(object):
             raise self._wrap_exception(e, "an error occurred while executing qry %s" % (qry, ))
         
     def fetchall(self):
+        iter = self.result_iter
         try:
-            return list(self.result_iter)
+            while True:
+                yield iter.next()
+        except StopIteration:
+            return
         except TaskletExit:
             raise
         except Exception, e:
