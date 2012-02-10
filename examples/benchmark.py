@@ -11,7 +11,7 @@ N = 1000
 
 
 def task():
-    conn = geventmysql.connect(host="127.0.0.1", user="root", password="")
+    conn = geventmysql.connect(host="127.0.0.1", user="test", password="test")
     cur = conn.cursor()
     for i in range(N):
         cur.execute("SELECT 1")
